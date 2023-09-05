@@ -4,13 +4,12 @@ from django.http import JsonResponse
 from pandas_datareader import data, wb
 import matplotlib.pyplot as plt
 import pandas_datareader as pdr
+from scipy.stats import norm
 import numpy as np    
 
 def nCr(n,r):
     f = math.factorial
     return f(n) / f(r) / f(n-r)
-
-
 
 def fetchData(ticker = "INFY.NS"):
     
@@ -34,86 +33,8 @@ def fetchData(ticker = "INFY.NS"):
     sigma = np.std(data_ret)
     return u, d, s0, sigma
 
-
-class Option(object):
-
-    def __init__(self,s0,u,d, r, t, strike):
-        self.s0=s0
-        self.u=u
-        self.d=d
-        self.r=r
-        self.t=t
-        self.strike=strike
-
-    def price(self):
-        q = (self.r - self.d) / (self.u - self.d)
-        prc = 0
-        temp_stock = 0
-        temp_payout = 0
-        for x in range(0, self.t+1):
-            temp_stock = self.s0*((1 + self.u)**(x))*((1+self.d)**(self.t - x))
-            temp_payout = max(temp_stock - self.strike, 0)
-            prc += nCr(self.t, x)*(q**(x))*((1-q)**(self.t- x))*temp_payout
-        prc = prc / ((1+self.r)**self.t)
-        return prc
-
-class OptionCRR(object):
-    
-    """
-    This finction find the option price under CRR Model.
-    """
-
-    def __init__(self, s0, sigma, strike, maturity, rfr,  n, dyield = None):
-        '''
-        s0: initial equity price, sigma: volatility, rfr: risk free rate, n: number of steps 
-        
-        '''
-        self.s0 = s0
-        self.sigma = sigma
-        self.rfr = rfr
-        self.maturity = maturity 
-        self.strike = strike
-        self.n = n
-        self.dyield = dyield
-    
-    def price(self):
-        
-        delta = float(self.maturity)/float(self.n)
-        u = math.exp(self.sigma*math.sqrt(delta))
-        d= 1/math.exp(self.sigma*math.sqrt(delta))
-        
-        if self.dyield ==None: 
-            q = (math.exp(self.rfr*delta) - d) / (u - d)
-        else:
-            q = (math.exp((self.rfr-self.dyield)*delta) - d) / (u - d)
-        
-        prc = 0
-        temp_stock = 0
-        temp_payout = 0
-        for x in range(0, self.n + 1):
-            temp_stock = self.s0*((u)**(x))*((d)**(self.n - x))
-            temp_payout = max(temp_stock - self.strike, 0)
-            prc += nCr(self.n, x)*(q**(x))*((1-q)**(self.n - x))*temp_payout
-        prc = prc / ((1+ self.rfr*delta )**self.n)
-        
-        
-        return prc
-
-
-class BinomialModel(object):
-    
-    """
-    This finction find the option price under CRR Model.
-    """
-
+class BinomialModel(object): 
     def __init__(self, s0, u, d, strike, maturity, rfr,  n, compd = "s", dyield = None):
-        '''
-        s0: initial equity price, sigma, u: up factor, d:down factor, 
-        rfr: risk free rate, n: number of steps
-        dyield: Dividend yield
-        compounding (simple = "s", continuous = "c")
-        
-        '''
         self.s0 = s0
         self.u = u
         self.d = d
@@ -185,7 +106,130 @@ class BinomialModel(object):
         
         return prc
     
+class CRRModel(object):
+    def __init__(self, s0, sigma, strike, maturity, rfr,  n, compd = "s", dyield = None):      
+        self.s0 = s0 
+        self.sigma = sigma
+        self.rfr = rfr
+        self.maturity = maturity 
+        self.strike = strike
+        self.n = n
+        self.compd = compd
+        self.dyield = dyield
+    
+    def call_price(self):
+        delta = float(self.maturity)/float(self.n)
+        u = math.exp(self.sigma*math.sqrt(delta))
+        d = 1/math.exp(self.sigma*math.sqrt(delta))
 
+
+        if self.compd == "c":
+            if self.dyield ==None: 
+                q = (math.exp(self.rfr*delta) - d) / (u - d)
+            else:
+                q = (math.exp((self.rfr-self.dyield)*delta) - d) / (u - d)
+        if self.compd == "s":
+            if self.dyield == None: 
+                q = (1 + self.rfr*delta - d) / (u - d)
+            else:
+                q = (1+ (self.rfr - self.dyield)*delta - d) / (u - d)
+        
+        prc = 0
+        temp_stock = 0
+        temp_payout = 0
+        for x in range(0, self.n + 1):
+            temp_stock = self.s0*((u)**(x))*((d)**(self.n - x))
+            temp_payout = max(temp_stock - self.strike, 0)
+            prc += nCr(self.n, x)*(q**(x))*((1-q)**(self.n - x))*temp_payout
+        
+        if self.compd == "s":
+            prc = prc / ((1+ self.rfr*delta )**self.n)
+        if self.compd == "c":
+            prc = prc / math.exp(self.rfr*delta)
+        
+        
+        return prc
+    
+    
+    def put_price(self):
+        delta = float(self.maturity)/float(self.n)
+        u = math.exp(self.sigma*math.sqrt(delta))
+        d= 1/math.exp(self.sigma*math.sqrt(delta))
+
+
+        if self.compd == "c":
+            if self.dyield ==None: 
+                q = (math.exp(self.rfr*delta) - d) / (u - d)
+            else:
+                q = (math.exp((self.rfr-self.dyield)*delta) - d) / (u - d)
+        if self.compd == "s":
+            if self.dyield == None: 
+                q = (1 + self.rfr*delta - d) / (u - d)
+            else:
+                q = (1+ (self.rfr - self.dyield)*delta - d) / (u - d)
+        
+        prc = 0
+        temp_stock = 0
+        temp_payout = 0
+        for x in range(0, self.n + 1):
+            temp_stock = self.s0*((u)**(x))*((d)**(self.n - x))
+            temp_payout = max(self.strike - temp_stock, 0)
+            prc += nCr(self.n, x)*(q**(x))*((1-q)**(self.n - x))*temp_payout
+        
+        if self.compd == "s":
+            prc = prc / ((1+ self.rfr*delta )**self.n)
+        if self.compd == "c":
+            prc = prc / math.exp(self.rfr*delta)
+        
+        
+        return prc  
+
+class BlackScholeModel(object):
+    def __init__(self, S, K, T, r, sigma, q=0,):
+        self.S = S
+        self.K = K
+        self.T = T
+        self.r = r
+        self.sigma = sigma
+        self.q = q
+    
+    @staticmethod
+    def N(x):
+        return norm.cdf(x)
+    
+    @property
+    def params(self):
+        return {'S': self.S, 
+                'K': self.K, 
+                'T': self.T, 
+                'r': self.r,
+                'q': self.q,
+                'sigma': self.sigma}
+    
+    def d1(self):
+        return (np.log(self.S / self.K) + (self.r - self.q + self.sigma**2 / 2) * self.T) \
+                                / (self.sigma * np.sqrt(self.T))
+    
+    def d2(self):
+        return self.d1() - self.sigma * np.sqrt(self.T)
+    
+    def _call_value(self):
+        return self.S * np.exp(-self.q * self.T) * self.N(self.d1()) - \
+                    self.K * np.exp(-self.r * self.T) * self.N(self.d2())
+                    
+    def _put_value(self):
+        return self.K * np.exp(-self.r * self.T) * self.N(-self.d2()) - \
+                self.S * np.exp(-self.q * self.T) * self.N(-self.d1())
+    
+    def price(self, type_='C'):
+        if type_ == 'C':
+            return self._call_value()
+        if type_ == 'P':
+            return self._put_value() 
+        if type_ == 'B':
+            return {'call': self._call_value(), 'put': self._put_value()}
+        else:
+            raise ValueError('Unrecognized type')
 
 def getPriceAndProb(request):
     if request.method=='POST':
