@@ -213,7 +213,5 @@ def getPriceAndProb(request):
             return JsonResponse({'fairPrice':round(callFairPrice,2)})
 
 
-
-
 def home(req):
     return render(req,'home.html',{})
