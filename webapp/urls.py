@@ -21,5 +21,7 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('',views.home),
-    path('get-price-prob/',views.getPriceAndProb)
+    path('get-price-prob/',views.getPriceAndProb),
+    path('crr-get-price-prob/',views.getPriceAndProbCRR),
+    path('bs-get-price-prob/',views.getPriceAndProbBS)
 ]

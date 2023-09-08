@@ -137,16 +137,20 @@ input{
     position: relative;
 }
 #crr_calculator{
+    color: white;
+    background-color: rebeccapurple;
     position: absolute;
+    display: block;
     transform: translateX(-50%);
     margin-left: 50%;
-    display: none;
 }
 #bs_calculator{
+    color: white;
+    background-color: rebeccapurple;
+    display: block;
     position: absolute;
     transform: translateX(-50%);
     margin-left: 50%;
-    display: none;
 }
 #bmod_calculator{
     color: white;
